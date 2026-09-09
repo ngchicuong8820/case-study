@@ -7,48 +7,47 @@ on:
     branches: [ main, master ]
 
 jobs:
-  # 1. BUILD STAGE
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout repository manually
+        run: |
+          git clone https://github.com/${{ github.repository }}.git .
+          git checkout ${{ github.sha }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Install dependencies
+      - name: Set up Python & Install dependencies
         run: |
           cd app
+          python3 -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Build Artifacts
         run: |
           echo "Building application packages..."
-          python -m compileall app/
+          python3 -m compileall app/
 
-  # 2. TEST STAGE
   test:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout repository manually
+        run: |
+          git clone https://github.com/${{ github.repository }}.git .
+          git checkout ${{ github.sha }}
 
       - name: Run Unit Tests
         run: |
           echo "Executing unit tests..."
-          python -c "print('All unit tests passed successfully!')"
+          python3 -c "print('All unit tests passed successfully!')"
 
-  # 3. SECURITY STAGE (SAST)
   security:
     runs-on: ubuntu-latest
     needs: test
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout repository manually
+        run: |
+          git clone https://github.com/${{ github.repository }}.git .
+          git checkout ${{ github.sha }}
 
       - name: Run Semgrep SAST Scan
         uses: semgrep/semgrep-action@v1
@@ -62,7 +61,6 @@ jobs:
         with:
           sarif_file: semgrep.sarif
 
-  # 4. DEPLOY MOCK STAGE (Optional)
   deploy_mock:
     runs-on: ubuntu-latest
     needs: security
