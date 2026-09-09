@@ -59,10 +59,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # --- 1. SEMGREP SAST SCAN ---
-      - name: Run Semgrep SAST & Generate SARIF
+      # --- 1. SEMGREP SAST SCAN & VISUAL CLI TABLE OUTPUT ---
+      - name: Run Semgrep SAST & Display Results
         run: |
           pip install semgrep
+          # Chạy scan để in bảng kết quả trực quan ra màn hình log GitHub Actions
+          semgrep scan --config=auto || true
+          
+          # Chạy lại để xuất file SARIF phục vụ việc upload lên GitHub Security
           semgrep scan --config=auto --sarif --output semgrep.sarif || true
 
       - name: Upload Semgrep SARIF report
