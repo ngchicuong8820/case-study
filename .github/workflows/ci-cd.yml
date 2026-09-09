@@ -59,17 +59,15 @@ jobs:
 
       - name: '[Semgrep] Generate SARIF Report'
         run: |
-          # Quét TẤT CẢ các mức độ (Info, Warning, Error) để tạo báo cáo đầy đủ
           semgrep scan --config=auto --sarif --output semgrep.sarif || true
 
       - name: '[Semgrep] Run Scan & Enforce Gate (Block Pipeline)'
         run: |
-          # CHỈ hiển thị và đánh fail pipeline (block) với các lỗi mức độ ERROR (High/Critical)
           semgrep scan --config=auto --severity ERROR --error
 
       - name: '[Semgrep] Upload SARIF Report'
         uses: github/codeql-action/upload-sarif@v4
-        if: always() # Luôn đẩy báo cáo lên GitHub Security dù job bị báo đỏ
+        if: always()
         with:
           sarif_file: semgrep.sarif
 
@@ -89,47 +87,27 @@ jobs:
       - name: '[CodeQL] Perform Deep Analysis'
         uses: github/codeql-action/analyze@v3
 
-  # --- 3.SONARQUBE---
+  # --- 3.SONARQUBE (SONARCLOUD) ---
   security-sonar:
     runs-on: ubuntu-latest
     needs: test
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: '[SonarQube] Evaluate Quality & Security Gate'
-        run: |
-          echo "=================================================="
-          echo "Running SonarQube Analysis (Security Hotspots & Quality)..."
-          
-          cat << 'EOF' > sonar-report.json
-          {
-            "projectStatus": {
-              "status": "OK",
-              "conditions": [
-                {
-                  "metricKey": "security_rating",
-                  "status": "OK"
-                }
-              ]
-            }
-          }
-          EOF
+      - name: SonarCloud Scan
+        uses: sonarsource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=ngchicuong8820
+            -Dsonar.projectKey=ngchicuong8820_case-study
 
-          python3 -c '
-          import json, sys
-          with open("sonar-report.json") as f:
-              data = json.load(f)
-          status = data["projectStatus"]["status"]
-          print(f"[SonarQube] Gate Status: {status}")
-          if status != "OK":
-              print("[SonarQube] Security/Quality Gate Failed!")
-              sys.exit(1)
-          else:
-              print("[SonarQube] Security/Quality Gate Passed!")
-          '
-
-  # --- 4.TRIVY---
+  # --- 4.TRIVY ---
   security-trivy:
     runs-on: ubuntu-latest
     needs: test
@@ -143,7 +121,6 @@ jobs:
           scan-type: 'fs'
           scan-ref: '.'
           format: 'table'
-          # Cấu hình exit-code: 1 sẽ làm Fail pipeline nếu phát hiện lỗi CRITICAL hoặc HIGH
           exit-code: '1' 
           ignore-unfixed: true
           vuln-type: 'os,library'
@@ -151,7 +128,6 @@ jobs:
 
   deploy_mock:
     runs-on: ubuntu-latest
-    # Thêm security-trivy-fs vào danh sách điều kiện bắt buộc
     needs: [security-semgrep, security-codeql, security-sonar, security-trivy]
     steps:
       - name: Mock Deployment Execution
