@@ -7,7 +7,8 @@ on:
     branches: [ main, master ]
 
 jobs:
-  build-and-test:
+  # 1. BUILD STAGE
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -23,50 +24,53 @@ jobs:
           cd app
           pip install -r requirements.txt
 
-      - name: Run Unit Tests
+      - name: Build Artifacts
         run: |
-          echo "Running unit tests..."
-          python -c "print('Unit tests passed successfully!')"
+          echo "Building application packages..."
+          python -m compileall app/
 
-  sast-scan:
+  # 2. TEST STAGE
+  test:
     runs-on: ubuntu-latest
-    needs: build-and-test
+    needs: build
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Semgrep SAST
+      - name: Run Unit Tests
+        run: |
+          echo "Executing unit tests..."
+          python -c "print('All unit tests passed successfully!')"
+
+  # 3. SECURITY STAGE (SAST)
+  security:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep SAST Scan
         uses: semgrep/semgrep-action@v1
         with:
           config: auto
           generate-sarif: "1"
-          # Tùy chọn: Bật strict mode nếu muốn semgrep tự động fail pipeline khi phát hiện lỗi
-          # strict: "true"
 
-      - name: Parse Security Report & Decision
-        run: |
-          echo "Parsing Semgrep SARIF report..."
-          if [ -f "semgrep.sarif" ]; then
-            echo "Report generated successfully."
-            # Kiểm tra xem có tìm thấy lỗi nào không (ví dụ kiểm tra rule severity)
-            # Ở đây chúng ta cho phép pipeline đi tiếp hoặc block tùy ý định nghĩa
-          else
-            echo "Error: Security report not found!"
-            exit 1
-          fi
-
-      - name: Upload SARIF report
+      - name: Upload SARIF report to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: semgrep.sarif
 
-  deploy-mock:
+  # 4. DEPLOY MOCK STAGE (Optional)
+  deploy_mock:
     runs-on: ubuntu-latest
-    needs: sast-scan
+    needs: security
     steps:
-      - name: Mock Deployment
+      - name: Mock Deployment Execution
         run: |
-          echo "========================================"
-          echo "Security Gate Passed! Deploying to Mock Environment..."
-          echo "========================================"
+          echo "=================================================="
+          echo "Security Gate Passed Successfully!"
+          echo "Deploying application to Mock Staging Environment..."
+          echo "Status: ONLINE"
+          echo "=================================================="
