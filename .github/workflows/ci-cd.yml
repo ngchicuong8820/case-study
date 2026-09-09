@@ -153,7 +153,7 @@ jobs:
   deploy_mock:
     runs-on: ubuntu-latest
     # Thêm security-trivy-fs vào danh sách điều kiện bắt buộc
-    needs: [Semgrep, Codeql, SonarQube, Trivy]
+    needs: [security-semgrep, security-codeql, security-sonar, security-trivy]
     steps:
       - name: Mock Deployment Execution
         run: |
