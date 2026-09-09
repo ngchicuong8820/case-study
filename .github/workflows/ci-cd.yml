@@ -41,25 +41,31 @@ jobs:
           python3 -c "print('All unit tests passed successfully!')"
 
   security:
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Checkout repository manually
-        run: |
-          git clone https://github.com/${{ github.repository }}.git .
-          git checkout ${{ github.sha }}
+      runs-on: ubuntu-latest
+      needs: test
+      # Bổ sung quyền hạn bảo mật cho job này
+      permissions:
+        security-events: write
+        actions: read
+        contents: read
 
-      - name: Run Semgrep SAST Scan
-        uses: semgrep/semgrep-action@v1
-        with:
-          config: auto
-          generate-sarif: "1"
+      steps:
+        - name: Checkout repository manually
+          run: |
+            git clone https://github.com/${{ github.repository }}.git .
+            git checkout ${{ github.sha }}
 
-      - name: Upload SARIF report to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: semgrep.sarif
+        - name: Run Semgrep SAST Scan
+          uses: semgrep/semgrep-action@v1
+          with:
+            config: auto
+            generate-sarif: "1"
+
+        - name: Upload SARIF report to GitHub Security
+          uses: github/codeql-action/upload-sarif@v4
+          if: always()
+          with:
+            sarif_file: semgrep.sarif
 
   deploy_mock:
     runs-on: ubuntu-latest
