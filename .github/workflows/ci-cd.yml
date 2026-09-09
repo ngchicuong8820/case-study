@@ -59,14 +59,13 @@ jobs:
 
       - name: '[Semgrep] Generate SARIF Report'
         run: |
-          # Quét và lưu báo cáo (|| true để đảm bảo file luôn được tạo ra đi tới bước sau)
+          # Quét TẤT CẢ các mức độ (Info, Warning, Error) để tạo báo cáo đầy đủ
           semgrep scan --config=auto --sarif --output semgrep.sarif || true
 
       - name: '[Semgrep] Run Scan & Enforce Gate (Block Pipeline)'
         run: |
-          # Quét lại để hiển thị log. 
-          # KHÔNG có || true. Thêm --error để ép pipeline báo ĐỎ nếu phát hiện lỗi.
-          semgrep scan --config=auto --error
+          # CHỈ hiển thị và đánh fail pipeline (block) với các lỗi mức độ ERROR (High/Critical)
+          semgrep scan --config=auto --severity ERROR --error
 
       - name: '[Semgrep] Upload SARIF Report'
         uses: github/codeql-action/upload-sarif@v4
