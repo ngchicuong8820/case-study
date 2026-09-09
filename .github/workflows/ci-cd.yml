@@ -50,7 +50,6 @@ jobs:
   # --- 1. NHÓM CÔNG CỤ: SEMGREP SAST ---
   security-semgrep:
     runs-on: ubuntu-latest
-    # Sử dụng Docker image có sẵn công cụ Semgrep để bỏ qua bước cài đặt
     container:
       image: semgrep/semgrep:latest
     needs: test
@@ -125,9 +124,30 @@ jobs:
               print("[SonarQube] Security/Quality Gate Passed!")
           '
 
+  # --- 4. NHÓM CÔNG CỤ: TRIVY (FILESYSTEM SCA) ---
+  security-trivy-fs:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: '[Trivy] Run Filesystem Scan'
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          # Cấu hình exit-code: 1 sẽ làm Fail pipeline nếu phát hiện lỗi CRITICAL hoặc HIGH
+          exit-code: '1' 
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
   deploy_mock:
     runs-on: ubuntu-latest
-    needs: [security-semgrep, security-codeql, security-sonar]
+    # Thêm security-trivy-fs vào danh sách điều kiện bắt buộc
+    needs: [security-semgrep, security-codeql, security-sonar, security-trivy-fs]
     steps:
       - name: Mock Deployment Execution
         run: |
