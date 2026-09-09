@@ -84,7 +84,7 @@ jobs:
         uses: github/codeql-action/analyze@v3
 
   # --- 3. NHÓM CÔNG CỤ: SONARQUBE (MOCK GATE) ---
-  quality-sonar:
+  security-sonar:
     runs-on: ubuntu-latest
     needs: test
     steps:
@@ -125,7 +125,7 @@ jobs:
 
   deploy_mock:
     runs-on: ubuntu-latest
-    needs: [security-semgrep, security-codeql, quality-sonar]
+    needs: [security-semgrep, security-codeql, security-sonar]
     steps:
       - name: Mock Deployment Execution
         run: |
