@@ -47,45 +47,51 @@ jobs:
           echo "Executing unit tests..."
           python3 -c "print('All unit tests passed successfully!')"
 
-  security:
+  # --- 1. NHÓM CÔNG CỤ: SEMGREP SAST ---
+  security-semgrep:
     runs-on: ubuntu-latest
     needs: test
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # --- 1. SEMGREP SAST SCAN & VISUAL CLI TABLE OUTPUT ---
-      - name: Run Semgrep SAST & Display Results
+      - name: '[Semgrep] Run Scan & Display CLI Table'
         run: |
           pip install semgrep
-          # Chạy scan để in bảng kết quả trực quan ra màn hình log GitHub Actions
           semgrep scan --config=auto || true
-          
-          # Chạy lại để xuất file SARIF phục vụ việc upload lên GitHub Security
           semgrep scan --config=auto --sarif --output semgrep.sarif || true
 
-      - name: Upload Semgrep SARIF report
+      - name: '[Semgrep] Upload SARIF Report'
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: semgrep.sarif
 
-      # --- 2. GITHUB CODEQL SAST SCAN ---
-      - name: Initialize CodeQL
+  # --- 2. NHÓM CÔNG CỤ: GITHUB CODEQL ---
+  security-codeql:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: '[CodeQL] Initialize Engine'
         uses: github/codeql-action/init@v3
         with:
           languages: python
 
-      - name: Perform CodeQL Analysis
+      - name: '[CodeQL] Perform Deep Analysis'
         uses: github/codeql-action/analyze@v3
 
-      # --- 3. SONARQUBE QUALITY & SECURITY GATE (MOCK) ---
-      - name: Run SonarQube Quality & Security Gate
+  # --- 3. NHÓM CÔNG CỤ: SONARQUBE (MOCK GATE) ---
+  quality-sonar:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: '[SonarQube] Evaluate Quality & Security Gate'
         run: |
           echo "=================================================="
           echo "Running SonarQube Analysis (Security Hotspots & Quality)..."
@@ -119,7 +125,7 @@ jobs:
 
   deploy_mock:
     runs-on: ubuntu-latest
-    needs: security
+    needs: [security-semgrep, security-codeql, quality-sonar]
     steps:
       - name: Mock Deployment Execution
         run: |
