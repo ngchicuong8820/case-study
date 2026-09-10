@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # 1. Ứng dụng Python mục tiêu (Target Application)
+  web-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    ports:
+      - "5000:5000"
+    networks:
+      - devsecops-local-net
+
+  # 2. Giả lập SonarQube Server phục vụ kiểm định chất lượng mã nguồn (Quality Gate)
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: local-sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_JDBC_USERNAME=sonar
+      - SONAR_JDBC_PASSWORD=sonar
+    networks:
+      - devsecops-local-net
+
+  # 3. Dịch vụ giả lập chạy quét Semgrep (SAST)
+  semgrep-scanner:
+    image: returntocorp/semgrep:latest
+    container_name: local-semgrep
+    command: semgrep scan --config=auto /src
+    volumes:
+      - .:/src
+    profiles:
+      - security-tools
+    networks:
+      - devsecops-local-net
+
+  # 4. Dịch vụ giả lập chạy quét Trivy (SCA, Image & IaC Scanning)
+  trivy-scanner:
+    image: aquasec/trivy:latest
+    container_name: local-trivy
+    command: fs --security-checks vuln,config /src
+    volumes:
+      - .:/src
+      - /var/run/docker.sock:/var/run/docker.sock
+    profiles:
+      - security-tools
+    networks:
+      - devsecops-local-net
+
+networks:
+  devsecops-local-net:
+    driver: bridge
