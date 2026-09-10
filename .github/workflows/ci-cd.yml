@@ -172,10 +172,26 @@ jobs:
 
           echo "Building services via Docker Compose..."
           docker compose build web-app
+  # --- 7. INFRASTRUCTURE AS CODE (IaC) SCANNING ---
+  security-iac-scan:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy for IaC & Misconfigurations (Dockerfile, Terraform, Helm)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
 
   deploy_mock:
     runs-on: ubuntu-latest
-    needs: [security-semgrep, security-codeql, security-sonar, security-trivy-fs, security-trivy-image, security-docker-compose]
+    needs: [security-semgrep, security-codeql, security-sonar, security-trivy-fs, security-trivy-image, security-docker-compose, security-iac-scan]
     steps:
       - name: Mock Deployment Execution
         run: |
