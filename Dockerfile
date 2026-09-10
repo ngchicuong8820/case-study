@@ -7,8 +7,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends gcc
 
 # Cài đặt thư viện phụ thuộc vào thư mục tạm
-COPY requirements.txt .
-RUn pip install --no-cache-dir --user -r requirements.txt
+COPY app/requirements.txt .
+RUN pip install --no-cache-dir --user -r requirements.txt
 
 # --- STAGE 2: Production Runtime Stage ---
 FROM python:3.9-slim AS runtime
