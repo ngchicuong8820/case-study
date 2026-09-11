@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  # --- STAGE 1: Khởi tạo & Kiểm tra mã nguồn (Không cần Dockerfile) ---
+  pipeline-stage-build:
+    image: alpine:latest
+    container_name: mock-ci-init
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    command: /bin/sh -c "echo '🚀 [STAGE 1] Đang khởi tạo pipeline và kiểm tra mã nguồn...' && ls -la && echo '✅ Khởi tạo thành công!'"
+
+  # --- STAGE 2: Chạy kiểm tra mã nguồn tĩnh (SAST) ---
+  pipeline-stage-sast:
+    image: returntocorp/semgrep:latest
+    container_name: mock-ci-sast
+    volumes:
+      - .:/src
+    command: semgrep scan --config=auto /src
+    depends_on:
+      pipeline-stage-build:
+        condition: service_completed_successfully
+
+  # --- STAGE 3: Chạy kiểm tra hạ tầng và thư viện (SCA & IaC) ---
+  pipeline-stage-sca-iac:
+    image: aquasec/trivy:latest
+    container_name: mock-ci-sca
+    volumes:
+      - .:/src
+    command: fs --security-checks vuln,config /src
+    depends_on:
+      pipeline-stage-sast:
+        condition: service_completed_successfully
