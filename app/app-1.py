@@ -1,7 +1,16 @@
-# Lộ Secret / API Key
-aws_access_key = "AKIAIOSFODNN7EXAMPLE"
+from flask import Flask, request
+import sqlite3
 
-# SQL Injection sơ đẳng
-def get_user(user_id):
-    query = "SELECT * FROM users WHERE id = '" + user_id + "'"
-    cursor.execute(query)
+app = Flask(__name__)
+
+@app.route("/login")
+def login():
+    username = request.args.get("user", "")
+    conn = sqlite3.connect("database.db")
+    cursor = conn.cursor()
+
+    # Lỗi: SQL Injection nghiêm trọng (Semgrep, CodeQL, SonarQube bắt lập tức)
+    query = f"SELECT * FROM users WHERE username = '{username}'"
+    cursor.executescript(query)
+
+    return "Login check executed."
