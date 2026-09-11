@@ -10,6 +10,7 @@ permissions:
   contents: read
   security-events: write
   actions: read
+  issues: write # Bổ sung dòng này để ZAP có quyền tạo báo cáo issue nếu cần
 
 jobs:
   build:
@@ -217,7 +218,7 @@ jobs:
         with:
           target: 'http://127.0.0.1:5000'
           fail_action: true
-          
+
   deploy_mock:
     runs-on: ubuntu-latest
     needs: [security-semgrep, security-codeql, security-sonar, security-trivy-fs, security-trivy-image, security-docker-compose, security-iac-scan, security-zap]
