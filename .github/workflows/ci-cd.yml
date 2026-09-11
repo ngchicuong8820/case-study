@@ -191,6 +191,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
  # --- 8. OWASP ZAP DAST SCAN ---
+# --- 8. OWASP ZAP DAST SCAN ---
   security-zap:
     runs-on: ubuntu-latest
     needs: [test]
@@ -214,8 +215,7 @@ jobs:
       - name: ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.12.0
         with:
-          # Lấy IP của Docker bridge trên runner thay vì dùng 127.0.0.1
-          target: 'http://$(ip -f inet -o addr show docker0 | awk "{print \$4}" | cut -d "/" -f 1):5000'
+          target: 'http://127.0.0.1:5000'
           fail_action: true
           
   deploy_mock:
