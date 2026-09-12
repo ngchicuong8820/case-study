@@ -64,14 +64,15 @@ jobs:
 
       - name: '[Semgrep] Run Scan & Enforce Gate (Block Pipeline)'
         run: |
-          semgrep scan --config=auto --severity ERROR --error
+          # Cho phép bắt cả mức ERROR và WARNING để ép pipeline fail đúng kịch bản
+          semgrep scan --config=auto --severity ERROR --severity WARNING --error
 
       - name: '[Semgrep] Upload SARIF Report'
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: semgrep.sarif
-
+          
   # --- 2.GITHUB CODEQL ---
   security-codeql:
     runs-on: ubuntu-latest
