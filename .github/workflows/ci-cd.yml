@@ -62,10 +62,10 @@ jobs:
         run: |
           semgrep scan --config rules.yaml app/ --sarif --output semgrep.sarif || true
 
-      - name: '[Semgrep] Run Custom Rules Scan & Enforce Gate'
+      - name: '[Semgrep] Run Scan & Enforce Gate'
         run: |
-          # Quét trực tiếp file rules.yaml ở thư mục gốc để ép hiện rõ nhãn CRITICAL, HIGH, MEDIUM
-          semgrep scan --config rules.yaml app/ --severity CRITICAL --severity HIGH --severity MEDIUM --error
+          # Dùng ERROR và WARNING để gom đủ các mức lỗi cần thiết mà không bị lỗi cú pháp CLI
+          semgrep scan --config "p/python" app/ --severity ERROR --severity WARNING --error
 
       - name: '[Semgrep] Upload SARIF Report'
         uses: github/codeql-action/upload-sarif@v4
