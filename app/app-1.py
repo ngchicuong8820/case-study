@@ -9,8 +9,11 @@ def login():
     conn = sqlite3.connect("database.db")
     cursor = conn.cursor()
 
-    # Lỗi: SQL Injection nghiêm trọng (Semgrep, CodeQL, SonarQube bắt lập tức)
+    # Lỗi SQL Injection (Được nhận diện ở mức High/Critical bởi Semgrep & CodeQL)
     query = f"SELECT * FROM users WHERE username = '{username}'"
-    cursor.executescript(query)
+    cursor.execute(query)
 
     return "Login check executed."
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
