@@ -222,7 +222,7 @@ jobs:
 
   deploy_mock:
     runs-on: ubuntu-latest
-    needs: [security-semgrep, security-codeql, security-sonar, security-trivy-fs, security-trivy-image, security-docker-compose, security-iac-scan]
+    needs: [Semgrep, security-codeql, security-sonar, security-trivy-fs, security-trivy-image, security-docker-compose, security-iac-scan]
     steps:
       - name: Mock Deployment Execution
         run: |
