@@ -9,7 +9,7 @@ def login():
     conn = sqlite3.connect("database.db")
     cursor = conn.cursor()
 
-    # Lỗi SQL Injection (Được nhận diện ở mức High/Critical bởi Semgrep & CodeQL)
+    # Lỗi High 2: Lối ghép chuỗi SQL trực tiếp qua f-string gây SQL Injection
     query = f"SELECT * FROM users WHERE username = '{username}'"
     cursor.execute(query)
 
