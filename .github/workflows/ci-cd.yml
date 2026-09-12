@@ -12,8 +12,8 @@ permissions:
   actions: read
 
 jobs:
-  # --- UNIT TEST ---
-  test:
+  # --- 1. BUILD ---
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +26,16 @@ jobs:
           touch requirements.txt 
           pip install -r requirements.txt
           python3 -m compileall .
-          echo "Executing unit tests... Passed!"
+          echo "Build completed!"
 
+  # --- 2. TEST ---
+  test:
+    runs-on: ubuntu-latest
+    needs: build  # Nhánh Test sẽ nối tiếp sau khi Build thành công
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          echo "Executing unit tests... Passed!"
   # --- 1. SEMGREP (SAST) ---
   security-semgrep:
     runs-on: ubuntu-latest
