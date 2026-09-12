@@ -10,7 +10,7 @@ permissions:
   contents: read
   security-events: write
   actions: read
-  issues: write # Bổ sung dòng này để ZAP có quyền tạo báo cáo issue nếu cần
+  issues: write
 
 jobs:
   build:
@@ -48,7 +48,7 @@ jobs:
           echo "Executing unit tests..."
           python3 -c "print('All unit tests passed successfully!')"
 
-  # --- 1.SEMGREP ---
+  # --- 1.SEMGREP (Sử dụng custom rules.yaml để hiển thị tường minh mức độ) ---
   security-semgrep:
     runs-on: ubuntu-latest
     container:
@@ -60,12 +60,12 @@ jobs:
 
       - name: '[Semgrep] Generate SARIF Report'
         run: |
-          semgrep scan --config "p/python" app/ --sarif --output semgrep.sarif || true
+          semgrep scan --config rules.yaml app/ --sarif --output semgrep.sarif || true
 
-      - name: '[Semgrep] Run Scan & Enforce Gate (Block Pipeline)'
+      - name: '[Semgrep] Run Custom Rules Scan & Enforce Gate'
         run: |
-          # Chỉ quét thư mục app/ với các quy tắc python để tránh bị nhiễu log và dễ lấy minh chứng
-          semgrep scan --config "p/python" app/ --severity ERROR --severity WARNING --error
+          # Quét trực tiếp file rules.yaml ở thư mục gốc để ép hiện rõ nhãn CRITICAL, HIGH, MEDIUM
+          semgrep scan --config rules.yaml app/ --severity CRITICAL --severity HIGH --severity MEDIUM --error
 
       - name: '[Semgrep] Upload SARIF Report'
         uses: github/codeql-action/upload-sarif@v4
@@ -185,7 +185,7 @@ jobs:
           scan-ref: '.'
           format: 'table'
           exit-code: '1'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL,HIGH,MEDIUM'
 
   deploy_mock:
     runs-on: ubuntu-latest

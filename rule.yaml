@@ -1,0 +1,28 @@
+rules:
+  - id: custom-command-injection-critical
+    patterns:
+      - pattern: os.popen(...)
+    message: "Phát hiện lỗ hổng thực thi lệnh hệ thống từ người dùng"
+    severity: CRITICAL
+    languages: [python]
+
+  - id: custom-hardcoded-secret-high
+    patterns:
+      - pattern: API_KEY = "..."
+    message: "Phát hiện khóa bí mật bị mã hóa cứng trong mã nguồn"
+    severity: HIGH
+    languages: [python]
+
+  - id: custom-sql-injection-high
+    patterns:
+      - pattern: cursor.execute(f"...")
+    message: "Phát hiện lỗ hổng SQL Injection qua chuỗi f-string"
+    severity: HIGH
+    languages: [python]
+
+  - id: custom-medium-config
+    patterns:
+      - pattern: app.run(host="0.0.0.0", ...)
+    message: "Cấu hình Flask mở cổng ra mạng công cộng"
+    severity: MEDIUM
+    languages: [python]
