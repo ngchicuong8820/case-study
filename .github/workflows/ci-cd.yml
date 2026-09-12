@@ -1,4 +1,4 @@
-name: DevSecOps CI/CD Pipeline
+name: Pipeline
 
 on:
   push:
@@ -31,26 +31,28 @@ jobs:
   # --- 2. TEST ---
   test:
     runs-on: ubuntu-latest
-    needs: build  # Nhánh Test sẽ nối tiếp sau khi Build thành công
+    needs: build  # Nhánh Test chạy sau khi Build thành công
     steps:
       - uses: actions/checkout@v4
       - run: |
           echo "Executing unit tests... Passed!"
-  # --- 1. SEMGREP (SAST) ---
+
+  # --- 3. SEMGREP (SAST) ---
   security-semgrep:
     runs-on: ubuntu-latest
+    needs: test  # Đợi Test xong mới chạy quét bảo mật
     steps:
       - uses: actions/checkout@v4
       - name: Install Semgrep
         run: pip install semgrep
       - name: Run Semgrep Scan
         run: |
-          # Quét in ra text trực quan. Chỉ Fail pipeline nếu có lỗi Severity: ERROR (Critical/High)
           semgrep scan --config=auto app/ --error
 
-  # --- 2. CODEQL (DEEP SAST) ---
+  # --- 4. CODEQL (DEEP SAST) ---
   security-codeql:
     runs-on: ubuntu-latest
+    needs: test  # Đợi Test xong mới chạy quét bảo mật
     permissions:
       security-events: write
     steps:
@@ -60,9 +62,10 @@ jobs:
           languages: python
       - uses: github/codeql-action/analyze@v3
 
-  # --- 3. SONARCLOUD (CODE QUALITY & SAST) ---
+  # --- 5. SONARCLOUD (CODE QUALITY & SAST) ---
   security-sonar:
     runs-on: ubuntu-latest
+    needs: test  # Đợi Test xong mới chạy quét bảo mật
     steps:
       - uses: actions/checkout@v4
         with:
@@ -76,11 +79,12 @@ jobs:
           args: >
             -Dsonar.organization=ngchicuong8820
             -Dsonar.projectKey=ngchicuong8820_case-study
-            -Dsonar.qualitygate.wait=true # BẮT BUỘC: Ép job dừng lại đợi kết quả để block nếu có lỗi High/Critical
+            -Dsonar.qualitygate.wait=true
 
-  # --- 4. TRIVY FILESYSTEM (SECRETS & DEPENDENCIES) ---
+  # --- 6. TRIVY FILESYSTEM (SECRETS & DEPENDENCIES) ---
   security-trivy-fs:
     runs-on: ubuntu-latest
+    needs: test  # Đợi Test xong mới chạy quét bảo mật
     steps:
       - uses: actions/checkout@v4
       - name: '[Trivy] Run Filesystem Scan'
@@ -93,9 +97,10 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
 
-  # --- 5. TRIVY CONTAINER IMAGE SCAN ---
+  # --- 7. TRIVY CONTAINER IMAGE SCAN ---
   security-trivy-image:
     runs-on: ubuntu-latest
+    needs: test  # Đợi Test xong mới chạy quét bảo mật
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -114,9 +119,10 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
 
-  # --- 6. TRIVY IaC SCAN ---
+  # --- 8. TRIVY IaC SCAN ---
   security-iac-scan:
     runs-on: ubuntu-latest
+    needs: test  # Đợi Test xong mới chạy quét bảo mật
     steps:
       - uses: actions/checkout@v4
       - name: '[Trivy] Run IaC Misconfiguration Scan'
@@ -128,10 +134,9 @@ jobs:
           severity: 'MEDIUM,HIGH,CRITICAL'
           exit-code: '1'
 
-  # --- 7. DEPLOY MOCK (GATEKEEPER) ---
+  # --- 9. DEPLOY MOCK (GATEKEEPER) ---
   deploy_mock:
     runs-on: ubuntu-latest
-    # Gatekeeper: Đợi TẤT CẢ các job trên chạy xong song song. Nếu bất kỳ job nào báo đỏ, Deploy Mock sẽ bị hủy.
     needs: [test, security-semgrep, security-codeql, security-sonar, security-trivy-fs, security-trivy-image, security-iac-scan]
     steps:
       - name: Mock Deployment Execution
