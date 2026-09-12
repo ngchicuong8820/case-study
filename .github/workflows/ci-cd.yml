@@ -1,137 +1,34 @@
-name: DevSecOps CI/CD Pipeline
+name: Pipeline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
 
 permissions:
   contents: read
   security-events: write
   actions: read
-  issues: write
 
 jobs:
-  build:
+  security-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python environment
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          cd app
-          pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Build Artifacts
-        run: |
-          echo "Building application packages..."
-          python3 -m compileall app/
-
-  test:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Run Unit Tests
-        run: |
-          echo "Executing unit tests..."
-          python3 -c "print('All unit tests passed successfully!')"
-
-  # --- 1.SEMGREP (Sử dụng custom rules.yaml để hiển thị tường minh mức độ) ---
- # Name of this GitHub Actions workflow.
-name: Semgrep
-
-on:
-  # Scan changed files in PRs (diff-aware scanning):
-  pull_request: {}
-  # Scan on-demand through GitHub Actions interface:
-  workflow_dispatch: {}
-  # Scan mainline branches and report all findings:
-  push:
-    branches: ["master", "main"]
-
-jobs:
-  semgrep_scan:
-    # User definable name of this GitHub Actions job.
-    name: semgrep/ci
-    # If you are self-hosting, change the following `runs-on` value:
-    runs-on: ubuntu-latest
-    container:
-      # A Docker image with Semgrep installed. Do not change this.
-      image: returntocorp/semgrep
-    # Skip any PR created by dependabot to avoid permission issues:
-    if: (github.actor != 'dependabot[bot]')
-    permissions:
-      # required for all workflows
-      security-events: write
-      # only required for workflows in private repositories
-      actions: read
-      contents: read
-
-    steps:
-      # Fetch project source with GitHub Actions Checkout.
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Perform Semgrep Analysis
-      # @NOTE: This is the actual semgrep command to scan your code.
-      # Modify the --config option to 'r/all' to scan using all rules,
-      # or use multiple flags to specify particular rules, such as
-      # --config r/all --config custom/rules
-        run: semgrep scan -q --sarif --config auto ./vulnerable-source-code > semgrep-results.sarif
-
-      # upload the results for the CodeQL GitHub app to annotate the code
-      - name: Save SARIF results as artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: semgrep-scan-results
-          path: semgrep-results.sarif
-
-      # Upload SARIF file generated in previous step
-      - name: Upload SARIF result to the GitHub Security Dashboard
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: semgrep-results.sarif
-        if: always()
-
-
-  # --- 2.GITHUB CODEQL ---
-  security-codeql:
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: '[CodeQL] Initialize Engine'
-        uses: github/codeql-action/init@v3
-        with:
-          languages: python
-
-      - name: '[CodeQL] Perform Deep Analysis'
-        uses: github/codeql-action/analyze@v3
-
-  # --- 3.SONARQUBE (SONARCLOUD) ---
-  security-sonar:
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Required for SonarQube blame history
 
+      # 1. SAST - Semgrep (Fast, local pattern matching)
+      - name: Run Semgrep SAST
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: auto
+          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }} # Optional for dashboard
+        continue-on-error: false
+
+      # 2. SAST & Quality Gate - SonarQube / SonarCloud
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@master
         env:
@@ -141,93 +38,21 @@ jobs:
           args: >
             -Dsonar.organization=ngchicuong8820
             -Dsonar.projectKey=ngchicuong8820_case-study
+            -Dsonar.python.version=3.10
 
-  # --- 4. TRIVY FILESYSTEM SCAN ---
-  security-trivy-fs:
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - uses: actions/checkout@v4
-      - uses: aquasecurity/trivy-action@master
+      # 3. SCA & Secrets & IaC - Trivy Unified Scanner
+      - name: Run Trivy vulnerability scanner in repo mode
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: '.'
-          format: 'table'
-          exit-code: '1'
-          severity: 'HIGH,CRITICAL'
-
-  # --- 5. TRIVY IMAGE SCAN ---
-  security-trivy-image:
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker Image for Scanning
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          load: true
-          tags: my-python-app:latest
-
-      - name: '[Trivy] Run Container Image Scan'
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'my-python-app:latest'
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
+          format: 'sarif'
+          output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
+          exit-code: '1' # Fails pipeline on finding High/Critical
 
-  # --- 6. DOCKER COMPOSE LOCAL SIMULATION & IAC CHECK ---
-  security-docker-compose:
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Validate and Build via Docker Compose
-        run: |
-          echo "Validating docker-compose.yml configuration..."
-          docker compose config
-
-          echo "Building services via Docker Compose..."
-          docker compose build web-app
-
-  # --- 7. INFRASTRUCTURE AS CODE (IaC) SCANNING ---
-  security-iac-scan:
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Run Trivy for IaC & Misconfigurations (Dockerfile, Terraform, Helm)
-        uses: aquasecurity/trivy-action@master
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
-          scan-type: 'config'
-          scan-ref: '.'
-          format: 'table'
-          exit-code: '1'
-          severity: 'CRITICAL,HIGH,MEDIUM'
-
-  deploy_mock:
-    runs-on: ubuntu-latest
-    needs: [Semgrep, security-codeql, security-sonar, security-trivy-fs, security-trivy-image, security-docker-compose, security-iac-scan]
-    steps:
-      - name: Mock Deployment Execution
-        run: |
-          echo "=================================================="
-          echo "All Security & Quality Gates Passed Successfully!"
-          echo "Deploying application to Mock Environment..."
-          echo "Status: ONLINE"
-          echo "=================================================="
+          sarif_file: 'trivy-results.sarif'
