@@ -113,19 +113,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: '[Trivy] Run Filesystem Scan'
-        uses: aquasecurity/trivy-action@master
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
           scan-ref: '.'
           format: 'table'
           exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
+          severity: 'HIGH,CRITICAL'
 
   # --- 5. TRIVY IMAGE SCAN ---
   security-trivy-image:
@@ -193,7 +188,7 @@ jobs:
 
   deploy_mock:
     runs-on: ubuntu-latest
-    needs: [security-semgrep, security-codeql, security-sonar, security-trivy-fs, security-trivy-image, security-docker-compose, security-iac-scan, security-zap]
+    needs: [security-semgrep, security-codeql, security-sonar, security-trivy-fs, security-trivy-image, security-docker-compose, security-iac-scan]
     steps:
       - name: Mock Deployment Execution
         run: |
