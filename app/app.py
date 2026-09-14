@@ -2,113 +2,113 @@ import os
 import subprocess
 import hashlib
 import sqlite3
-from flask import Flask, request, send_file, jsonify, render_template_string
+from flask import Flask, request, send_file
 
 app = Flask(__name__)
 
 # =====================================================================
-# 1. DATABASE COMPONENT & INITIALIZATION
+# THÀNH PHẦN 1: DATABASE (ĐÁP ỨNG TASK 5)
 # =====================================================================
 def init_db():
-    """Khởi tạo Database SQLite cho ứng dụng"""
+    """Khởi tạo cơ sở dữ liệu SQLite cho hệ thống E-commerce."""
     conn = sqlite3.connect('ecommerce.db')
     cursor = conn.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)''')
-    # Thêm user admin mặc định (password lưu dạng hash MD5 của chữ 'admin123')
-    cursor.execute("INSERT INTO users (username, password) SELECT 'admin', '0192023a7bbd73250516f069df18b500' WHERE NOT EXISTS(SELECT 1 FROM users WHERE username='admin')")
+    cursor.execute('''CREATE TABLE IF NOT EXISTS transactions (id INTEGER PRIMARY KEY, tx_hash TEXT)''')
     conn.commit()
     conn.close()
 
 # =====================================================================
-# 2. EXTERNAL PAYMENT SERVICE COMPONENT
+# THÀNH PHẦN 2: EXTERNAL PAYMENT SERVICE (ĐÁP ỨNG TASK 5)
+# (Giữ NGHIÊM NGẶT mã cũ từ app_high_1.py)
 # =====================================================================
-# [LỖI HIGH 1: Hardcoded Secrets] - Trivy sẽ chặn vì lộ API Key của Stripe
-STRIPE_SECRET_KEY = "sk_live_51Mabcde1234567890XYZ"
+def get_cloud_credentials():
+    # Lỗ hổng High: Lộ thông tin khóa bảo mật (Hardcoded AWS Keys)
+    aws_access_key = "AKIAIOSFODNN7EXAMPLE"
+    aws_secret_key = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    
+    return aws_access_key, aws_secret_key
 
-def process_external_payment(amount):
-    """Mô phỏng gọi API sang cổng thanh toán bên ngoài"""
-    print(f"Connecting to External Payment Gateway (Stripe) using token: {STRIPE_SECRET_KEY}")
-    return {"status": "success", "amount": amount, "gateway": "Stripe"}
+def external_payment_gateway():
+    """Mô phỏng gọi cổng thanh toán bên ngoài sử dụng khóa bí mật"""
+    creds = get_cloud_credentials()
+    return f"Connected to Payment Gateway using key: {creds[0]}"
+
 
 # =====================================================================
-# 3. WEB APP COMPONENT (FRONTEND)
+# THÀNH PHẦN 3: WEB APP (ĐÁP ỨNG TASK 5)
+# (Mở rộng từ app_medium_1.py nhưng giữ nguyên câu chào gốc)
 # =====================================================================
-@app.route('/')
-def web_app_home():
-    """Giao diện Web App Frontend trả về HTML"""
+@app.route("/")
+def home():
+    # Bao bọc câu chào gốc bằng giao diện HTML để trở thành Web App
     html_content = """
     <html>
-        <head><title>Secure E-commerce Web App</title></head>
-        <body style="font-family: Arial;">
-            <h2>Welcome to E-commerce Portal</h2>
-            <p>Hệ thống bao gồm: Web App, RESTful API, SQLite Database và External Payment (Stripe).</p>
+        <head><title>E-commerce Web App</title></head>
+        <body style="font-family: Arial; text-align: center; margin-top: 50px;">
+            <h2>Welcome to the application.</h2>
+            <p>Kiến trúc hệ thống bao gồm: Web App, API, Database (SQLite) và External Payment.</p>
         </body>
     </html>
     """
-    return render_template_string(html_content)
+    return html_content
+
 
 # =====================================================================
-# 4. API SERVER COMPONENT (BACKEND ENDPOINTS)
+# THÀNH PHẦN 4: API SERVER (ĐÁP ỨNG TASK 5)
+# (Giữ NGHIÊM NGẶT mã cũ từ app_critical, app_high_2 và app_medium_2)
 # =====================================================================
 
-@app.route('/api/v1/auth/login', methods=['POST'])
-def api_login():
-    """API Xác thực kết nối thẳng vào Database"""
-    username = request.form.get('username')
-    password = request.form.get('password', '')
+# TỪ FILE: app_critical.py (API Chẩn đoán mạng)
+@app.route("/network-test")
+def ping_test():
+    target_ip = request.args.get("ip", "8.8.8.8")
+    # Lỗ hổng Critical: Thực thi lệnh OS trực tiếp từ tham số request
+    command = f"ping -c 1 {target_ip}"
+    output = subprocess.check_output(command, shell=True, text=True)
+    
+    return f"<pre>{output}</pre>"
 
-    # [LỖI MEDIUM 1: Weak Cryptography] - Semgrep cảnh báo dùng MD5
-    hashed_password = hashlib.md5(password.encode()).hexdigest()
-
-    # Truy vấn vào Database thực tế
-    conn = sqlite3.connect('ecommerce.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE username=? AND password=?", (username, hashed_password))
-    user = cursor.fetchone()
-    conn.close()
-
-    if user:
-        return jsonify({"status": "success", "token": "jwt-mock-token"}), 200
-    return jsonify({"status": "error", "message": "Invalid credentials"}), 401
-
-
-@app.route('/api/v1/invoices/download', methods=['GET'])
-def api_download_invoice():
-    """API Tải hóa đơn"""
+# TỪ FILE: app_high_2.py (API Tải hóa đơn/tài liệu)
+@app.route("/download")
+def download_document():
+    # Lỗ hổng High: Đọc file hệ thống trái phép (Directory Traversal)
     file_name = request.args.get("file_name")
     
-    # [LỖI HIGH 2: Path Traversal] - SonarCloud & Semgrep báo lỗi
-    base_dir = "/var/www/app/data/invoices/"
+    # Không sanitize input, ghép chuỗi trực tiếp vào đường dẫn
+    base_dir = "/var/www/app/data/"
     target_path = os.path.join(base_dir, file_name)
     
     if os.path.exists(target_path):
         return send_file(target_path)
-    return jsonify({"error": "Invoice not found"}), 404
+    return "File not found", 404
 
+# TỪ FILE: app_medium_2.py (API Sinh mã băm cho giao dịch)
+@app.route("/hash")
+def generate_hash():
+    user_data = request.args.get("data", "default_value")
+    
+    # Lỗ hổng Medium 2: Sử dụng hashlib.md5() 
+    # Semgrep sẽ in ra log là: Severity: WARNING
+    md5_hash = hashlib.md5(user_data.encode()).hexdigest()
+    
+    # Tích hợp thêm lưu vào Database để thể hiện logic E-commerce
+    conn = sqlite3.connect('ecommerce.db')
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO transactions (tx_hash) VALUES (?)", (md5_hash,))
+    conn.commit()
+    conn.close()
+    
+    return f"MD5 Hash result: {md5_hash}"
 
-@app.route('/api/v1/payment/checkout', methods=['GET'])
-def api_payment_checkout():
-    """API Thanh toán và Chẩn đoán mạng cổng thanh toán"""
-    
-    # [LỖI CRITICAL 1: OS Command Injection] - Cho phép tấn công chiếm quyền máy chủ
-    target_ip = request.args.get("gateway_ip", "api.stripe.com")
-    command = f"ping -c 1 {target_ip}"
-    
-    try:
-        # Thực thi lệnh hệ thống từ input người dùng
-        output = subprocess.check_output(command, shell=True, text=True)
-        
-        # Gọi sang External Payment Service
-        payment_result = process_external_payment(100)
-        
-        return jsonify({"network_log": output, "payment_status": payment_result}), 200
-    except subprocess.CalledProcessError as e:
-        return jsonify({"error": "Gateway timeout"}), 500
 
 # =====================================================================
-# APPLICATION ENTRY POINT
+# ENTRY POINT
+# (Giữ NGHIÊM NGẶT mã cũ từ app_medium_1.py)
 # =====================================================================
-if __name__ == '__main__':
+if __name__ == "__main__":
+    # Khởi tạo CSDL khi chạy app
     init_db()
-    # [LỖI MEDIUM 2: Debug Mode Enabled] - Lộ thông tin nhạy cảm khi có lỗi
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    
+    # Lỗ hổng Medium 1: Kích hoạt chế độ debug (debug=True)
+    # Semgrep sẽ in ra log là: Severity: WARNING
+    app.run(host="0.0.0.0", port=8080, debug=True)
