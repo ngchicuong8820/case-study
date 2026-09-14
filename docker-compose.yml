@@ -12,19 +12,47 @@ services:
     networks:
       - devsecops-local-net
 
-  # 2. Giả lập SonarQube Server phục vụ kiểm định chất lượng mã nguồn (Quality Gate)
+  # 2. Cơ sở dữ liệu cho SonarQube (Bắt buộc cho phiên bản LTS mới)
+  sonar-db:
+    image: postgres:15-alpine
+    container_name: local-sonar-db
+    environment:
+      - POSTGRES_USER=sonar
+      - POSTGRES_PASSWORD=sonar
+      - POSTGRES_DB=sonarqube
+    volumes:
+      - sonar_data:/var/lib/postgresql/data
+    networks:
+      - devsecops-local-net
+
+  # 3. SonarQube Server phục vụ kiểm định chất lượng mã nguồn
   sonarqube:
     image: sonarqube:lts-community
     container_name: local-sonarqube
+    depends_on:
+      - sonar-db
     ports:
       - "9000:9000"
     environment:
       - SONAR_JDBC_USERNAME=sonar
       - SONAR_JDBC_PASSWORD=sonar
+      - SONAR_JDBC_URL=jdbc:postgresql://sonar-db:5432/sonarqube
     networks:
       - devsecops-local-net
 
-  # 3. Dịch vụ giả lập chạy quét Semgrep (SAST)
+  # 4. Giả lập Gitleaks (Secret Scan)
+  gitleaks-scanner:
+    image: zricethezav/gitleaks:latest
+    container_name: local-gitleaks
+    command: detect --source=/src --verbose
+    volumes:
+      - .:/src
+    profiles:
+      - security-tools
+    networks:
+      - devsecops-local-net
+
+  # 5. Dịch vụ giả lập chạy quét Semgrep (SAST)
   semgrep-scanner:
     image: returntocorp/semgrep:latest
     container_name: local-semgrep
@@ -36,7 +64,7 @@ services:
     networks:
       - devsecops-local-net
 
-  # 4. Dịch vụ giả lập chạy quét Trivy (SCA, Image & IaC Scanning)
+  # 6. Dịch vụ giả lập chạy quét Trivy (SCA & Image Scan)
   trivy-scanner:
     image: aquasec/trivy:latest
     container_name: local-trivy
@@ -48,6 +76,9 @@ services:
       - security-tools
     networks:
       - devsecops-local-net
+
+volumes:
+  sonar_data:
 
 networks:
   devsecops-local-net:
